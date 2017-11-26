@@ -69,7 +69,7 @@ FROM
                 ) AND n1an.CR01_INTERNAL_ID = rul.CR01_INTERNAL_ID
         )
         AND an.CR01_INTERNAL_ID = rul.CR01_INTERNAL_ID
-        AND an.CC03_NEXT_ENVENT = 'LTR_FTNDUE'
+        -- AND an.CC03_NEXT_ENVENT = 'LTR_FTNDUE' -- bug does not say any thing about the next event of AN, AN can be in other states
         AND (an.CC03_EVENT_DUE - rul.CC03_CREATE_ON) < 31
     )
 )
