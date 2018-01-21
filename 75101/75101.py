@@ -73,7 +73,7 @@ if __name__ == '__main__':
     crs.execute(q)
     for r in crs:
         taxdue, _ = r
-        taxdues.add(taxdue)
+        taxdues.add(int(taxdue))
     if len(taxdues) < 2:
         print("returns of tin have same amount of data so THIS IS NOT A BUG")
         sys.exit(0)
