@@ -14,7 +14,6 @@ import javafx.stage.Stage;
 import oracle.jdbc.driver.OracleDriver;
 
 import java.sql.*;
-import java.util.Arrays;
 
 
 public class Main extends Application {
@@ -224,7 +223,7 @@ public class Main extends Application {
         status_error_l.setManaged(false);
     }
 
-    private static void terminate(String msg) {
+    static void terminate(String msg) {
         System.err.println(msg);
         System.exit(-1);
     }
@@ -285,7 +284,8 @@ public class Main extends Application {
                     "    RET2.CA02_RETURN_ID = '" + return_id + "'\n" +
                     "    AND RET2.CA02_RETURN_VERSION = " + return_version);
         } catch (Exception e) {
-            terminate("Query didn't executed properly, error was: " + Arrays.toString(e.getStackTrace()));
+            e.printStackTrace();
+            terminate("Query didn't executed properly.");
         }
         try {
             if(rs == null || !rs.next()) {
@@ -295,42 +295,87 @@ public class Main extends Application {
         } catch (SQLException e) {
             terminate("Error in fetching next result in ftn query.");
         }
+        System.out.println("" + rs);
         FTN ftn = new FTN();
         try {
             ftn.cstd_return_type = rs.getString("F0").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca02_tax_year = rs.getString("F1").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.sysdate = rs.getString("F2").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr01_tin_id = rs.getString("F3").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr13_trade_name = rs.getString("F4").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr04_national_id = rs.getString("F5").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.gto_from_office_id = rs.getString("F6").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cs04_name = rs.getString("F7").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cs04_phone = rs.getString("F8").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cs04_postal_adr = rs.getString("F9").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr20_postal_address = rs.getString("F10").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr11_first_name = rs.getString("F11").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr11_second_name = rs.getString("F12").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca02_return_id = rs.getString("F13").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca02_return_version = rs.getString("F14").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca02_tax_period_to = rs.getString("F15").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca02_tax_period_from = rs.getString("F16").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr01_natural_per_flag = rs.getString("F17").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr10_reg_number = rs.getString("F18").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr13_name = rs.getString("F19").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cstd_activity_code = rs.getString("F20").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.cr25_fixed_phone = rs.getString("F21").trim();
+        } catch (Exception ignored) {}
+        try {
             ftn.ca03_return_content = rs.getString("F22").trim();
-        } catch (SQLException e) {
-            terminate("Can not fetch the required data from result set.");
-        }
+        } catch (Exception ignored) {}
         try {
             if(rs.next()) {
                 show_status_error("FTN query returned more than one result.");
                 return;
             }
         } catch (SQLException ignored) { }
-        if(!ftn.generate_xml())
+        if(!ftn.generate_xml()) {
             show_status_error("XML of FTN can not be generated.");
+        }
+        ftn.print();
     }
 
     private void create_all_ftns() {}
