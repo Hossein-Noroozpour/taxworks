@@ -18,28 +18,28 @@ import java.sql.*;
 
 public class Main extends Application {
 
-    private TextField db_address_tf;
-    private Label db_address_error_l;
-    private TextField db_user_tf;
-    private Label db_user_error_l;
-    private PasswordField password_pf;
-    private Label password_error_l;
-    private RadioButton one_rb;
-    private RadioButton all_rb;
-    private TextField return_id_tf;
-    private Label return_id_error_l;
-    private TextField return_version_tf;
-    private Label return_version_error_l;
-    private Label status_error_l;
+    private static TextField db_address_tf;
+    private static Label db_address_error_l;
+    private static TextField db_user_tf;
+    private static Label db_user_error_l;
+    private static PasswordField password_pf;
+    private static Label password_error_l;
+    private static RadioButton one_rb;
+    private static RadioButton all_rb;
+    private static TextField return_id_tf;
+    private static Label return_id_error_l;
+    private static TextField return_version_tf;
+    private static Label return_version_error_l;
+    private static Label status_error_l;
 
-    private String db_address;
-    private String db_user;
-    private String db_password;
+    private static String db_address;
+    private static String db_user;
+    private static String db_password;
 
-    private String return_id;
-    private String return_version;
+    private static String return_id;
+    private static String return_version;
 
-    private Connection db_connection = null;
+    private static Connection db_connection = null;
 
     private static final Color error_color = Color.rgb(160, 0, 0);
 
@@ -202,7 +202,7 @@ public class Main extends Application {
         stage.show();
     }
 
-    private void show_status_error(String msg) {
+    private static void show_status_error(String msg) {
         status_error_l.setText(msg);
         status_error_l.setVisible(true);
         status_error_l.setManaged(true);
@@ -223,7 +223,7 @@ public class Main extends Application {
         status_error_l.setManaged(false);
     }
 
-    static void terminate(String msg) {
+    private static void terminate(String msg) {
         System.err.println(msg);
         System.exit(-1);
     }
@@ -436,5 +436,29 @@ public class Main extends Application {
 
     public static void main(String[] args) {
         Application.launch (args);
+    }
+
+    static ResultSet get_result_set(String query_text) {
+        Statement stmt = null;
+        try {
+            stmt = db_connection.createStatement();
+        } catch (SQLException e) {
+            terminate("Error in creating statement");
+        }
+        if(null == stmt)
+            terminate("Statement is null.");
+        ResultSet rs = null;
+        try {
+            assert stmt != null;
+            rs = stmt.executeQuery(query_text);
+        } catch (Exception e) {
+            e.printStackTrace();
+            terminate("Query didn't executed properly.");
+        }
+        if(rs == null) {
+            show_status_error("Query result set was empty. The ftn can not be generated.");
+            return null;
+        }
+        return rs;
     }
 }

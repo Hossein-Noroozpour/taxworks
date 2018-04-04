@@ -4,6 +4,13 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
+import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.Semaphore;
 
 class FTN {
     String cstd_return_type = "";
@@ -29,6 +36,8 @@ class FTN {
     String cstd_activity_code = "";
     String cr25_fixed_phone = "";
     String ca03_return_content = "";
+    String cc03_id = "";
+    String issuance_reason = "";
     private String ts06_country = "";
     private String ts06_region = "";
     private String ts06_city = "";
@@ -153,7 +162,69 @@ class FTN {
     private String ret_tax_rebates = "";
     private String ret_discount_applicable_131_exemption_rebate = "";
 
+    private static boolean initialized = false;
+    private static Date last_initialization = new Date();
+    private static Semaphore initialization_sem = new Semaphore(0);
+    private static Map<String, String> fa_countries_desc = new HashMap<>();
+    private static Map<String, String> fa_regions_desc = new HashMap<>();
+    private static Map<String, String> fa_cities_desc = new HashMap<>();
+    private static Map<String, String> fa_districts_desc = new HashMap<>();
+
+
     FTN() {
+    }
+
+    private void initialize() {
+        Date now = new Date();
+        if(!initialized || now.getTime() - last_initialization.getTime() < 9 * 1000) return;
+        try {
+            initialization_sem.acquire();
+            try {
+                fa_countries_desc.clear();
+                fa_regions_desc.clear();
+                fa_cities_desc.clear();
+                fa_districts_desc.clear();
+                initialized = true;
+                last_initialization = now;
+                ResultSet rs = Main.get_result_set(
+                        "" +
+                                "SELECT CODE_DESC, INTERNAL_CODE, GROUP_CODE " +
+                                "FROM FRAMEWORK.STD_CODES_DESC" +
+                                "WHERE" +
+                                "    GROUP_CODE IN (" +
+                                "        'COUNTRY'," +
+                                "        'REGION'," +
+                                "        'CITY'," +
+                                "        'DISTRICT')" +
+                                "    AND LANG_CODE = 'FA'" +
+                                "");
+                while(rs != null && rs.next()) {
+                    String key = rs.getString("INTERNAL_CODE");
+                    String val = rs.getString("CODE_DESC");
+                    switch (rs.getString("GROUP_CODE"))
+                    {
+                        case "COUNTRY":
+                            fa_countries_desc.put(key, val);
+                            break;
+                        case "REGION":
+                            fa_regions_desc.put(key, val);
+                            break;
+                        case "CITY":
+                            fa_cities_desc.put(key, val);
+                            break;
+                        case "DISTRICT":
+                            fa_districts_desc.put(key, val);
+                            break;
+                    }
+                }
+            } catch( Exception e) {
+                e.printStackTrace(); // todo log in here
+            } finally {
+                initialization_sem.release();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace(); // todo log in here
+        }
     }
 
     private void parse_cs04_postal_adr() {
@@ -737,7 +808,9 @@ class FTN {
                         }
                     }
                 }
-                streamReader.next();
+                if(streamReader.hasNext())
+                    streamReader.next();
+                else break;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -745,6 +818,7 @@ class FTN {
     }
 
     boolean generate_xml() {
+        initialize();
         parse_cs04_postal_adr();
         parse_cr20_postal_adr();
         parse_return_content();
@@ -901,36 +975,114 @@ class FTN {
         System.out.println("ret_discount_applicable_131_exemption_rebate: " + ret_discount_applicable_131_exemption_rebate);
     }
 
-    private String create_element(String e, String v) {
+    private String create_element(int element_index, String v) {
+        if(v.isEmpty())
+            return "";
+        final String e = convert_to_string(element_index);
         return "<" + e + ">" + v + "</" + e + ">";
     }
 
     private String to_xml() {
-        String result = "";
-        result += create_element("a", cstd_return_type);
-        result += create_element("b", sysdate);
-        result += create_element("c", ca02_tax_year);
-        result += create_element("d", cr01_tin_id);
-        result += create_element("e", cr13_trade_name);
-        result += create_element("f", cr04_national_id);
-        result += create_element("g", gto_from_office_id);
-        result += create_element("h", cs04_name);
-        result += create_element("i", cs04_phone);
-        result += create_element("j", cs04_postal_adr);
-        result += create_element("k", cr20_postal_address);
-        result += create_element("l", cr11_first_name);
-        result += create_element("m", cr11_second_name);
-        result += create_element("n", ca02_return_id);
-        result += create_element("o", ca02_return_version);
-        result += create_element("p", ca02_tax_period_to);
-        result += create_element("q", ca02_tax_period_from);
-        result += create_element("r", cr01_natural_per_flag);
-        result += create_element("s", cr10_reg_number);
-        result += create_element("t", cr13_name);
-        result += create_element("u", cstd_activity_code);
-        result += create_element("v", cr25_fixed_phone);
-        result += create_element("w", ca03_return_content);
-        return result;
+        StringBuilder result = new StringBuilder();
+        String value;
+        String tmp;
+        //--------------------------------------------------------------------------------------------------------------
+        if(cstd_return_type.equals("FRM24")) {
+            String taxpayer_type = "";
+            switch (ret_taxpayer_type) {
+                case "01":
+                    taxpayer_type = "الف";
+                    break;
+                case "02":
+                    taxpayer_type = "ب";
+                    break;
+                case "03":
+                    taxpayer_type = "ج";
+                    break;
+                case "04":
+                    taxpayer_type = "ج- وسائط نقليه";
+                    break;
+            }
+            result.append(create_element(1, cstd_return_type + " بند " + taxpayer_type));
+        } else {
+            result.append(create_element(1, cstd_return_type));
+        }
+        //--------------------------------------------------------------------------------------------------------------
+        result.append(create_element(2, ca02_tax_year));
+        result.append(create_element(3, ca02_tax_period_from));
+        result.append(create_element(4, ca02_tax_period_to));
+        result.append(create_element(5, cc03_id));
+        result.append(create_element(6, sysdate));
+        result.append(create_element(7, gto_from_office_id));
+        result.append(create_element(8, cs04_name));
+        result.append(create_element(9, cs04_phone));
+        result.append(create_element(10, ts06_pin_code));
+        // -------------------------------------------------------------------------------------------------------------
+        value = "";
+        tmp = fa_countries_desc.get(ts06_country);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_regions_desc.get(ts06_region);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_cities_desc.get(ts06_city);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_districts_desc.get(ts06_district);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        value += ts06_village.isEmpty() ? "": ts06_village + " ";
+        value += ts06_lot_number.isEmpty() ? "": ts06_lot_number + " ";
+        value += ts06_square.isEmpty() ? "": ts06_square + " ";
+        value += ts06_phase.isEmpty() ? "": ts06_phase + " ";
+        value += ts06_complex.isEmpty() ? "": ts06_complex + " ";
+        value += ts06_alley.isEmpty() ? "": ts06_alley + " ";
+        value += ts06_second_street.isEmpty() ? "": ts06_second_street + " ";
+        value += ts06_street_name.isEmpty() ? "": ts06_street_name + " ";
+        value += ts06_street_no.isEmpty() ? "": ts06_street_no + " ";
+        value += ts06_building.isEmpty() ? "": ts06_building + " ";
+        value += ts06_staircase.isEmpty() ? "": ts06_staircase + " ";
+        value += ts06_floor.isEmpty() ? "": ts06_floor + " ";
+        value += ts06_room.isEmpty() ? "": ts06_room + " ";
+        value += ts06_pin_code;
+        result.append(create_element(11, value));
+        // -------------------------------------------------------------------------------------------------------------
+        result.append(create_element(12, issuance_reason));
+        result.append(create_element(13, issuance_reason));
+        result.append(create_element(25, cr01_tin_id));
+        result.append(create_element(sysdate));
+        result.append(create_element(ca02_tax_year));
+        result.append(create_element(cr01_tin_id));
+        result.append(create_element(cr13_trade_name));
+        result.append(create_element(cr04_national_id));
+        result.append(create_element(gto_from_office_id));
+        result.append(create_element(cs04_name));
+        result.append(create_element(cs04_phone));
+        result.append(create_element(cs04_postal_adr));
+        result.append(create_element(cr20_postal_address));
+        result.append(create_element(cr11_first_name));
+        result.append(create_element(cr11_second_name));
+        result.append(create_element(ca02_return_id));
+        result.append(create_element(ca02_return_version));
+        result.append(create_element(ca02_tax_period_to));
+        result.append(create_element(ca02_tax_period_from));
+        result.append(create_element(cr01_natural_per_flag));
+        result.append(create_element(cr10_reg_number));
+        result.append(create_element(cr13_name));
+        result.append(create_element(cstd_activity_code));
+        result.append(create_element(cr25_fixed_phone));
+        result.append(create_element(ca03_return_content));
+        return result.toString();
+    }
+
+    private String convert_to_string(int i) {
+        final int base = 52;
+        StringBuilder result = new StringBuilder();
+        for(int dom = i; dom != 0; dom /= base) {
+            final int rem = dom % base;
+            if(rem < 26) {
+                result.append((char) (rem + ((int) 'A')));
+            } else {
+                result.append((char) ((rem - 26) + ((int) 'a')));
+            }
+        }
+        return result.toString();
     }
 
 }
