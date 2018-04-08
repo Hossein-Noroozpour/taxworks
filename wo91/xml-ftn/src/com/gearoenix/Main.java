@@ -38,6 +38,7 @@ public class Main extends Application {
 
     private static String return_id;
     private static String return_version;
+    private static String letter_id;
 
     private static Connection db_connection = null;
 
@@ -88,7 +89,7 @@ public class Main extends Application {
         Label label1 = new Label("Database address: ");
         grid.add(label1, 0, 0);
 
-        db_address_tf = new TextField ();
+        db_address_tf = new TextField();
         db_address_tf.setPromptText("ip:port:sid");
         db_address_tf.setMaxWidth(Double.MAX_VALUE);
         grid.add(db_address_tf, 1, 0);
@@ -100,7 +101,7 @@ public class Main extends Application {
         Label label2 = new Label("Username: ");
         grid.add(label2, 0, 2);
 
-        db_user_tf = new TextField ();
+        db_user_tf = new TextField();
         db_user_tf.setMaxWidth(Double.MAX_VALUE);
         grid.add(db_user_tf, 1, 2);
 
@@ -134,7 +135,7 @@ public class Main extends Application {
         Label label4 = new Label("Return ID: ");
         grid.add(label4, 0, 7);
 
-        return_id_tf = new TextField ();
+        return_id_tf = new TextField();
         return_id_tf.setMaxWidth(Double.MAX_VALUE);
         grid.add(return_id_tf, 1, 7);
 
@@ -145,7 +146,7 @@ public class Main extends Application {
         Label label5 = new Label("Return version: ");
         grid.add(label5, 0, 9);
 
-        return_version_tf = new TextField ();
+        return_version_tf = new TextField();
         return_version_tf.setMaxWidth(Double.MAX_VALUE);
         grid.add(return_version_tf, 1, 9);
 
@@ -155,7 +156,7 @@ public class Main extends Application {
 
         mode_tg.selectedToggleProperty().addListener(
                 (ObservableValue<? extends Toggle> ov, Toggle old_toggle, Toggle new_toggle) -> {
-                    if(new_toggle.equals(all_rb)) {
+                    if (new_toggle.equals(all_rb)) {
                         label4.setVisible(false);
                         label4.setManaged(false);
                         return_id_tf.setVisible(false);
@@ -235,60 +236,166 @@ public class Main extends Application {
         } catch (SQLException e) {
             terminate("Error in creating statement");
         }
-        if(null == stmt)
+        if (null == stmt)
             terminate("Statement is null.");
         ResultSet rs = null;
         try {
             assert stmt != null;
             rs = stmt.executeQuery(
                     "SELECT\n" +
-                    "    RET2.CSTD_RETURN_TYPE                                                     F0,\n" +
-                    "    RET2.CA02_TAX_YEAR                                                        F1,\n" +
-                    "    TO_CHAR(SYSDATE, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')                    F2,\n" +
-                    "    REG1.CR01_TIN_ID                                                          F3,\n" +
-                    "    REG13.CR13_TRADE_NAME                                                     F4,\n" +
-                    "    REG4.CR04_NATIONAL_ID                                                     F5,\n" +
-                    "    GETGTOFROMOFFICEID(REG16.CS04_ID)                                         F6,\n" +
-                    "    ADM4.CS04_NAME                                                            F7,\n" +
-                    "    ADM4.CS04_PHONE                                                           F8,\n" +
-                    "    ADM4.CS04_POSTAL_ADR                                                      F9,\n" +
-                    "    REG20.CR20_POSTAL_ADDRESS                                                 F10,\n" +
-                    "    REG11.CR11_FIRST_NAME                                                     F11,\n" +
-                    "    REG11.CR11_SECOND_NAME                                                    F12,\n" +
-                    "    RET2.CA02_RETURN_ID                                                       F13,\n" +
-                    "    RET2.CA02_RETURN_VERSION                                                  F14,\n" +
-                    "    TO_CHAR(RET2.CA02_TAX_PERIOD_TO, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')    F15,\n" +
-                    "    TO_CHAR(RET2.CA02_TAX_PERIOD_FROM, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')  F16,\n" +
-                    "    REG1.CR01_NATURAL_PER_FLAG                                                F17,\n" +
-                    "    REG10.CR10_REG_NUMBER                                                     F18,\n" +
-                    "    REG13.CR13_NAME                                                           F19,\n" +
-                    "    REG6.CSTD_ACTIVITY_CODE                                                   F20,\n" +
-                    "    REG25.CR25_FIXED_PHONE                                                    F21,\n" +
-                    "    RET3.CA03_RETURN_CONTENT                                                  F22\n" +
-                    "FROM\n" +
-                    "    RET.TA02_RETURNS RET2\n" +
-                    "    LEFT JOIN RET.TA03_RET_CONTENT RET3 ON RET3.CA02_RETURN_ID = RET2.CA02_RETURN_ID AND RET3.CA02_RETURN_VERSION = RET2.CA02_RETURN_VERSION\n" +
-                    "    LEFT JOIN REG.TR01_TAXPAYER REG1 ON REG1.CR01_INTERNAL_ID = RET2.CR01_INTERNAL_ID\n" +
-                    "    LEFT JOIN REG.TR04_NATURAL_PERSON REG4 ON REG1.CR04_NATURAL_PER_ID IS NOT NULL AND REG1.CR04_NATURAL_PER_ID = REG4.CR04_NATURAL_PER_ID\n" +
-                    "    LEFT JOIN REG.TR06_BRANCH_BUSI_ACTIVITY REG6 ON RET2.CR01_INTERNAL_ID = REG6.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG6.CR03_BRANCH_CODE AND REG6.CR06_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR10_LEGAL_PERSON REG10 ON REG1.CR10_LEGAL_PER_ID IS NOT NULL AND REG1.CR10_LEGAL_PER_ID = REG10.CR10_LEGAL_PER_ID\n" +
-                    "    LEFT JOIN REG.TR11_NATURAL_PER_NAME REG11 ON REG1.CR04_NATURAL_PER_ID = REG11.CR04_NATURAL_PER_ID AND REG11.CR11_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR13_LEGAL_PER_NAME REG13 ON REG1.CR10_LEGAL_PER_ID = REG13.CR10_LEGAL_PER_ID AND REG13.CR13_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR16_TAXPAYER_OFFICE REG16 ON REG1.CR01_INTERNAL_ID = REG16.CR01_INTERNAL_ID AND REG16.CR16_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR17_BRANCH_NAME REG17 ON REG17.CR17_END_DATE IS NULL AND REG17.CR01_INTERNAL_ID = RET2.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG17.CR03_BRANCH_CODE\n" +
-                    "    LEFT JOIN REG.TR19_BRANCH_PHYSICAL_ADDR REG19 ON RET2.CR01_INTERNAL_ID = REG19.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG19.CR03_BRANCH_CODE AND REG19.CR19_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR20_BRANCH_POSTAL_ADDR REG20 ON RET2.CR01_INTERNAL_ID = REG20.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG20.CR03_BRANCH_CODE AND REG20.CR20_END_DATE IS NULL\n" +
-                    "    LEFT JOIN REG.TR25_OFFICIALS REG25 ON RET2.CR01_INTERNAL_ID = REG25.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG25.CR03_BRANCH_CODE\n" +
-                    "    LEFT JOIN ADM.TS04_OFFICE ADM4 ON ADM4.CS04_ID = REG16.CS04_ID\n" +
-                    "WHERE\n" +
-                    "    RET2.CA02_RETURN_ID = '" + return_id + "'\n" +
-                    "    AND RET2.CA02_RETURN_VERSION = " + return_version);
+                            "    RET2.CSTD_RETURN_TYPE                                                     F0,\n" +
+                            "    RET2.CA02_TAX_YEAR                                                        F1,\n" +
+                            "    TO_CHAR(SYSDATE, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')                    F2,\n" +
+                            "    REG1.CR01_TIN_ID                                                          F3,\n" +
+                            "    REG13.CR13_TRADE_NAME                                                     F4,\n" +
+                            "    REG4.CR04_NATIONAL_ID                                                     F5,\n" +
+                            "    GETGTOFROMOFFICEID(REG16.CS04_ID)                                         F6,\n" +
+                            "    ADM4.CS04_NAME                                                            F7,\n" +
+                            "    ADM4.CS04_PHONE                                                           F8,\n" +
+                            "    ADM4.CS04_POSTAL_ADR                                                      F9,\n" +
+                            "    REG20.CR20_POSTAL_ADDRESS                                                 F10,\n" +
+                            "    REG11.CR11_FIRST_NAME                                                     F11,\n" +
+                            "    REG11.CR11_LAST_NAME                                                      F12,\n" +
+                            "    RET2.CA02_RETURN_ID                                                       F13,\n" +
+                            "    RET2.CA02_RETURN_VERSION                                                  F14,\n" +
+                            "    TO_CHAR(RET2.CA02_TAX_PERIOD_TO, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')    F15,\n" +
+                            "    TO_CHAR(RET2.CA02_TAX_PERIOD_FROM, 'yyyy/mm/dd', 'NLS_CALENDAR=Persian')  F16,\n" +
+                            "    REG1.CR01_NATURAL_PER_FLAG                                                F17,\n" +
+                            "    REG10.CR10_REG_NUMBER                                                     F18,\n" +
+                            "    REG13.CR13_NAME                                                           F19,\n" +
+                            "    REG6.CSTD_ACTIVITY_CODE                                                   F20,\n" +
+                            "    REG25.CR25_FIXED_PHONE                                                    F21,\n" +
+                            "    RET3.CA03_RETURN_CONTENT                                                  F22,\n" +
+                            "    ISSUANCE.CC03_ID                                                          F23,\n" +
+                            "    ISSUANCE.CC03_CREATE_ON                                                   F24,\n" +
+                            "    PREVIOUS_FTN.CC03_ID                                                      F25,\n" +
+                            "    PREVIOUS_FTN.CC03_CREATE_ON                                               F26\n" +
+                            "FROM\n" +
+                            "    RET.TA02_RETURNS RET2\n" +
+                            "    LEFT JOIN RET.TA03_RET_CONTENT RET3 ON RET3.CA02_RETURN_ID = RET2.CA02_RETURN_ID AND RET3.CA02_RETURN_VERSION = RET2.CA02_RETURN_VERSION\n" +
+                            "    LEFT JOIN REG.TR01_TAXPAYER REG1 ON REG1.CR01_INTERNAL_ID = RET2.CR01_INTERNAL_ID\n" +
+                            "    LEFT JOIN REG.TR04_NATURAL_PERSON REG4 ON REG1.CR04_NATURAL_PER_ID IS NOT NULL AND REG1.CR04_NATURAL_PER_ID = REG4.CR04_NATURAL_PER_ID\n" +
+                            "    LEFT JOIN REG.TR06_BRANCH_BUSI_ACTIVITY REG6 ON RET2.CR01_INTERNAL_ID = REG6.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG6.CR03_BRANCH_CODE AND REG6.CR06_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR10_LEGAL_PERSON REG10 ON REG1.CR10_LEGAL_PER_ID IS NOT NULL AND REG1.CR10_LEGAL_PER_ID = REG10.CR10_LEGAL_PER_ID\n" +
+                            "    LEFT JOIN REG.TR11_NATURAL_PER_NAME REG11 ON REG1.CR04_NATURAL_PER_ID = REG11.CR04_NATURAL_PER_ID AND REG11.CR11_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR13_LEGAL_PER_NAME REG13 ON REG1.CR10_LEGAL_PER_ID = REG13.CR10_LEGAL_PER_ID AND REG13.CR13_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR16_TAXPAYER_OFFICE REG16 ON REG1.CR01_INTERNAL_ID = REG16.CR01_INTERNAL_ID AND REG16.CR16_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR17_BRANCH_NAME REG17 ON REG17.CR17_END_DATE IS NULL AND REG17.CR01_INTERNAL_ID = RET2.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG17.CR03_BRANCH_CODE\n" +
+                            "    LEFT JOIN REG.TR19_BRANCH_PHYSICAL_ADDR REG19 ON RET2.CR01_INTERNAL_ID = REG19.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG19.CR03_BRANCH_CODE AND REG19.CR19_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR20_BRANCH_POSTAL_ADDR REG20 ON RET2.CR01_INTERNAL_ID = REG20.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG20.CR03_BRANCH_CODE AND REG20.CR20_END_DATE IS NULL\n" +
+                            "    LEFT JOIN REG.TR25_OFFICIALS REG25 ON RET2.CR01_INTERNAL_ID = REG25.CR01_INTERNAL_ID AND RET2.CR03_BRANCH_CODE = REG25.CR03_BRANCH_CODE\n" +
+                            "    LEFT JOIN ADM.TS04_OFFICE ADM4 ON ADM4.CS04_ID = REG16.CS04_ID,\n" +
+                            "    (\n" +
+                            "        SELECT MAX(CC03_ID) CC03_ID, MAX(CC03_CREATE_ON) CC03_CREATE_ON\n" +
+                            "        FROM (\n" +
+                            "            SELECT CC03_ID, CC03_CREATE_ON\n" +
+                            "            FROM\n" +
+                            "                STL.TC03_LETTER STL3\n" +
+                            "                JOIN OBJ.TO02_REQUEST_DETAILS OBJ2\n" +
+                            "                    ON\n" +
+                            "                        STL3.CC03_ENTITY_ID = OBJ2.CO01_REQUEST_NO\n" +
+                            "                        AND OBJ2.CA02_RETURN_ID = " + return_id + "\n" +
+                            "            WHERE\n" +
+                            "                RET2.CR01_INTERNAL_ID = STL3.CR01_INTERNAL_ID\n" +
+                            "                AND STL3.CSTD_ENTITY = 'OBJ'\n" +
+                            "                AND STL3.CSTD_LETTER_TYPE IN ('LTR_OA01','LTR_OA02','LTR_OA12')\n" +
+                            "            UNION\n" +
+                            "            SELECT CC03_ID, CC03_CREATE_ON\n" +
+                            "            FROM STL.TC03_LETTER STL3\n" +
+                            "            WHERE\n" +
+                            "                STL3.CC03_ENTITY_ID = " + return_id + " || " + return_version + "\n" +
+                            "                AND STL3.CSTD_LETTER_TYPE IN ('LTR_RP12', 'LTR_AC07')\n" +
+                            "        )\n" +
+                            "    ) ISSUANCE,\n" +
+                            "    (" +
+                            "        SELECT MAX(TC03.CC03_ID) CC03_ID, MAX(TC03.CC03_CREATE_ON) CC03_CREATE_ON\n" +
+                            "        FROM\n" +
+                            "            TC03_LETTER TC03\n" +
+                            "            JOIN TC01_LETTER_TEMPLATE TC01 ON TC03.CC01_ID = TC01.CC01_ID\n" +
+                            "        WHERE\n" +
+                            "            TC03.CR01_INTERNAL_ID = RET2.CR01_INTERNAL_ID\n" +
+                            "            AND TC03.CR03_BRANCH_CODE = RET2.CR03_BRANCH_CODE\n" +
+                            "            AND TC03.CC03_YEAR = RET2.CA02_TAX_YEAR\n" +
+                            "            AND TC03.CC03_FILING_PERIOD = RET2.CA02_TAX_PERIOD    \n" +
+                            "            AND TC03.CA09_TAX_TYPE_CODE = RET2.CA09_TAX_TYPE_CODE\n" +
+                            "            AND TC01.CSTD_LETTER_TYPE = 'LTR_EF02'\n" +
+                            "            AND TC03.CC03_ID < " + letter_id + "\n" +
+                            "    ) PREVIOUS_FTN,\n" +
+                            "    (\n" +
+                            "        SELECT\n" +
+                            "            SUM(AVAILABLE_AMT) AMT_NUMBER,\n" +
+                            "            LTRIM(TO_CHAR(SUM(AVAILABLE_AMT), '99,999,999,999,999,999,999.99')) AMT_DISPLAY,\n" +
+                            "            LTRIM(TO_CHAR(SUM(AVAILABLE_AMT), '00,000,000,000,000,000,000.00')) AMT_HANDLE\n" +
+                            "        FROM (\n" +
+                            "            SELECT AMOUNT AS AVAILABLE_AMT\n" +
+                            "            FROM (\n" +
+                            "                SELECT SUM(AMOUNT) AMOUNT\n" +
+                            "                FROM\n" +
+                            "                    (\n" +
+                            "                        SELECT\n" +
+                            "                            CASE WHEN TT01.CSTD_DC = 'DT' THEN\n" +
+                            "                                0 - TT01.CT01_AMOUNT\n" +
+                            "                            ELSE\n" +
+                            "                                TT01.CT01_AMOUNT\n" +
+                            "                            END AMOUNT\n" +
+                            "                        FROM TT01_TRANSACTIONS TT01, TAX_RETURNS TA02\n" +
+                            "                        WHERE\n" +
+                            "                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                            "                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                            "                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                            "                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                            "                            AND TT01.CSTD_LIABILITY_TYPE <> 'ASSLS' " +
+                            "                            AND TT01.CSTD_LIABILITY_TYPE <> 'RET186N2'\n" +
+                            "                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                            "                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                            "                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                            "                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                            "                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                            "                            AND TT01.CSTD_TRAN_TYPE IN (\n" +
+                            "                                SELECT INTERNAL_CODE\n" +
+                            "                                FROM STD_CODES\n" +
+                            "                                WHERE\n" +
+                            "                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                            "                                    AND PARENT_INTERNAL_CODE IN ('PA','RL'))\n" +
+                            "                            AND TA02.CA02_RETURN_ID = '{?CHARRETURNID}'\n" +
+                            "                            AND TA02.CA02_RETURN_VERSION = '{?CHARRETURNVERSION}'\n" +
+                            "                        UNION ALL\n" +
+                            "                        SELECT\n" +
+                            "                            CASE WHEN TT01.CSTD_DC = 'DT' THEN\n" +
+                            "                                0 - TT01.CT01_AMOUNT\n" +
+                            "                            ELSE\n" +
+                            "                                TT01.CT01_AMOUNT\n" +
+                            "                            END AMOUNT\n" +
+                            "                        FROM TT01_TRANSACTIONS TT01\n" +
+                            "                        WHERE " +
+                            "                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                            "                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                            "                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                            "                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                            "                            AND TT01.CSTD_LIABILITY_TYPE <> 'ASSLS'\n" +
+                            "                            AND TT01.CSTD_LIABILITY_TYPE <> 'RET186N2'\n" +
+                            "                            AND TT01.CSTD_TRAN_TYPE IN (\n" +
+                            "                                SELECT INTERNAL_CODE\n" +
+                            "                                FROM STD_CODES\n" +
+                            "                                WHERE\n" +
+                            "                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                            "                                    AND PARENT_INTERNAL_CODE IN ('PA','RL'))\n" +
+                            "                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET' \n" +
+                            "                            AND TT01.CT01_ALLOCATED_ENTITYID = '{?CHARRETURNID}'                                                                      \n" +
+                            "                    ) TAB1\n" +
+                            "                 ) TAB\n" +
+                            "         WHERE TAB.AMOUNT > 0) AVAILABLE)\n" +
+                            "\n" +
+                            "\n" +
+                            "WHERE\n" +
+                            "    RET2.CA02_RETURN_ID = '" + return_id + "'\n" +
+                            "    AND RET2.CA02_RETURN_VERSION = " + return_version);
         } catch (Exception e) {
             e.printStackTrace();
             terminate("Query didn't executed properly.");
         }
         try {
-            if(rs == null || !rs.next()) {
+            if (rs == null || !rs.next()) {
                 show_status_error("Query result set was empty. The ftn can not be generated.");
                 return;
             }
@@ -299,111 +406,152 @@ public class Main extends Application {
         FTN ftn = new FTN();
         try {
             ftn.cstd_return_type = rs.getString("F0").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca02_tax_year = rs.getString("F1").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.sysdate = rs.getString("F2").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr01_tin_id = rs.getString("F3").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr13_trade_name = rs.getString("F4").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr04_national_id = rs.getString("F5").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.gto_from_office_id = rs.getString("F6").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cs04_name = rs.getString("F7").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cs04_phone = rs.getString("F8").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cs04_postal_adr = rs.getString("F9").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr20_postal_address = rs.getString("F10").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr11_first_name = rs.getString("F11").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
-            ftn.cr11_second_name = rs.getString("F12").trim();
-        } catch (Exception ignored) {}
+            ftn.cr11_last_name = rs.getString("F12").trim();
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca02_return_id = rs.getString("F13").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca02_return_version = rs.getString("F14").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca02_tax_period_to = rs.getString("F15").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca02_tax_period_from = rs.getString("F16").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr01_natural_per_flag = rs.getString("F17").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr10_reg_number = rs.getString("F18").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr13_name = rs.getString("F19").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cstd_activity_code = rs.getString("F20").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.cr25_fixed_phone = rs.getString("F21").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             ftn.ca03_return_content = rs.getString("F22").trim();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
-            if(rs.next()) {
+            ftn.issuance_cc03_id = rs.getString("F23").trim();
+        } catch (Exception ignored) {
+        }
+        try {
+            ftn.issuance_cc03_create_on = rs.getString("F24").trim();
+        } catch (Exception ignored) {
+        }
+        try {
+            ftn.previous_ftn_cc03_id = rs.getString("F25").trim();
+        } catch (Exception ignored) {
+        }
+        try {
+            ftn.previous_ftn_cc03_create_on = rs.getString("F26").trim();
+        } catch (Exception ignored) {
+        }
+        try {
+            if (rs.next()) {
                 show_status_error("FTN query returned more than one result.");
                 return;
             }
-        } catch (SQLException ignored) { }
-        if(!ftn.generate_xml()) {
+        } catch (SQLException ignored) {
+        }
+        if (!ftn.generate_xml()) {
             show_status_error("XML of FTN can not be generated.");
         }
         ftn.print();
     }
 
-    private void create_all_ftns() {}
+    private void create_all_ftns() {
+    }
 
     private void execute() {
         clear_errors();
         db_address = db_address_tf.getText();
-        if(db_address == null || db_address.isEmpty()) {
+        if (db_address == null || db_address.isEmpty()) {
             db_address_error_l.setVisible(true);
             db_address_error_l.setManaged(true);
             return;
         }
         db_user = db_user_tf.getText();
-        if(db_user == null || db_user.isEmpty()) {
+        if (db_user == null || db_user.isEmpty()) {
             db_user_error_l.setVisible(true);
             db_user_error_l.setManaged(true);
             return;
         }
         db_password = password_pf.getText();
-        if(db_password == null || db_password.isEmpty()) {
+        if (db_password == null || db_password.isEmpty()) {
             password_error_l.setVisible(true);
             password_error_l.setManaged(true);
             return;
         }
-        if(!db_connect()) return;
-        if(one_rb.isSelected()) {
+        if (!db_connect()) return;
+        if (one_rb.isSelected()) {
             return_id = return_id_tf.getText();
-            if(return_id == null || return_id.isEmpty()) {
+            if (return_id == null || return_id.isEmpty()) {
                 return_id_error_l.setVisible(true);
                 return_id_error_l.setManaged(true);
                 return;
@@ -416,7 +564,7 @@ public class Main extends Application {
                 return;
             }
             return_version = return_version_tf.getText();
-            if(return_version == null || return_version.isEmpty()) {
+            if (return_version == null || return_version.isEmpty()) {
                 return_version_error_l.setVisible(true);
                 return_version_error_l.setManaged(true);
                 return;
@@ -435,7 +583,7 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
-        Application.launch (args);
+        Application.launch(args);
     }
 
     static ResultSet get_result_set(String query_text) {
@@ -445,7 +593,7 @@ public class Main extends Application {
         } catch (SQLException e) {
             terminate("Error in creating statement");
         }
-        if(null == stmt)
+        if (null == stmt)
             terminate("Statement is null.");
         ResultSet rs = null;
         try {
@@ -455,7 +603,7 @@ public class Main extends Application {
             e.printStackTrace();
             terminate("Query didn't executed properly.");
         }
-        if(rs == null) {
+        if (rs == null) {
             show_status_error("Query result set was empty. The ftn can not be generated.");
             return null;
         }

@@ -25,7 +25,7 @@ class FTN {
     String cs04_postal_adr = "";
     String cr20_postal_address = "";
     String cr11_first_name = "";
-    String cr11_second_name = "";
+    String cr11_last_name = "";
     String ca02_return_id = "";
     String ca02_return_version = "";
     String ca02_tax_period_to = "";
@@ -36,8 +36,11 @@ class FTN {
     String cstd_activity_code = "";
     String cr25_fixed_phone = "";
     String ca03_return_content = "";
-    String cc03_id = "";
+    String issuance_cc03_id = "";
+    String issuance_cc03_create_on = "";
     String issuance_reason = "";
+    String previous_ftn_cc03_id = "";
+    String previous_ftn_cc03_create_on = "";
     private String ts06_country = "";
     private String ts06_region = "";
     private String ts06_city = "";
@@ -170,6 +173,9 @@ class FTN {
     private static Map<String, String> fa_cities_desc = new HashMap<>();
     private static Map<String, String> fa_districts_desc = new HashMap<>();
 
+    private StringBuilder xml_strbld;
+
+    private int tax_year = 0;
 
     FTN() {
     }
@@ -839,7 +845,7 @@ class FTN {
         System.out.println("cs04_postal_adr: " + cs04_postal_adr);
         System.out.println("cr20_postal_address: " + cr20_postal_address);
         System.out.println("cr11_first_name: " + cr11_first_name);
-        System.out.println("cr11_second_name: " + cr11_second_name);
+        System.out.println("cr11_second_name: " + cr11_last_name);
         System.out.println("ca02_return_id: " + ca02_return_id);
         System.out.println("ca02_return_version: " + ca02_return_version);
         System.out.println("ca02_tax_period_to: " + ca02_tax_period_to);
@@ -982,10 +988,82 @@ class FTN {
         return "<" + e + ">" + v + "</" + e + ">";
     }
 
+    private void helper_element1(int i, String s) {
+        if (s.isEmpty()) return;
+        try {
+            final double c = Math.ceil(Double.parseDouble(s));
+            if(c == 0.0) return;
+            final String ceil = String.valueOf(c);
+            if (ceil.isEmpty()) return;
+            xml_strbld.append(create_element(i, ceil));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private double to_double(String s) {
+        try {
+            return Double.parseDouble(s);
+        } catch (Exception ignored) {
+            return 0.0;
+        }
+    }
+
+    private int to_int(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
     private String to_xml() {
-        StringBuilder result = new StringBuilder();
+        xml_strbld = new StringBuilder();
         String value;
         String tmp;
+        tax_year = to_int(ca02_tax_year);
+        final boolean cr01_natural_per_flag_is_y = cr01_natural_per_flag.equalsIgnoreCase("Y");
+        final int frm;
+        switch(cstd_return_type) {
+            case "FRM23":
+                frm = 23;
+                break;
+            case "FRM24":
+                frm = 24;
+                break;
+            case "FRM32":
+                frm = 32;
+                break;
+            case "FRM34":
+                frm = 34;
+                break;
+            case "FRM37":
+                frm = 37;
+                break;
+            case "FRM44":
+                frm = 44;
+                break;
+            case "FRM45":
+                frm = 45;
+                break;
+            case "FRM46":
+                frm = 46;
+                break;
+            case "FRM48":
+                frm = 48;
+                break;
+            case "FRM49":
+                frm = 49;
+                break;
+            case "FRM56b":
+                frm = 56;
+                break;
+            case "FRM57":
+                frm = 57;
+                break;
+            default:
+                frm = 99999;
+                break;
+        }
         //--------------------------------------------------------------------------------------------------------------
         if(cstd_return_type.equals("FRM24")) {
             String taxpayer_type = "";
@@ -1003,20 +1081,20 @@ class FTN {
                     taxpayer_type = "ج- وسائط نقليه";
                     break;
             }
-            result.append(create_element(1, cstd_return_type + " بند " + taxpayer_type));
+            xml_strbld.append(create_element(1, cstd_return_type + " بند " + taxpayer_type));
         } else {
-            result.append(create_element(1, cstd_return_type));
+            xml_strbld.append(create_element(1, cstd_return_type));
         }
         //--------------------------------------------------------------------------------------------------------------
-        result.append(create_element(2, ca02_tax_year));
-        result.append(create_element(3, ca02_tax_period_from));
-        result.append(create_element(4, ca02_tax_period_to));
-        result.append(create_element(5, cc03_id));
-        result.append(create_element(6, sysdate));
-        result.append(create_element(7, gto_from_office_id));
-        result.append(create_element(8, cs04_name));
-        result.append(create_element(9, cs04_phone));
-        result.append(create_element(10, ts06_pin_code));
+        xml_strbld.append(create_element(2, ca02_tax_year));
+        xml_strbld.append(create_element(3, ca02_tax_period_from));
+        xml_strbld.append(create_element(4, ca02_tax_period_to));
+        xml_strbld.append(create_element(5, issuance_cc03_id));
+        xml_strbld.append(create_element(6, sysdate));
+        xml_strbld.append(create_element(7, gto_from_office_id));
+        xml_strbld.append(create_element(8, cs04_name));
+        xml_strbld.append(create_element(9, cs04_phone));
+        xml_strbld.append(create_element(10, ts06_pin_code));
         // -------------------------------------------------------------------------------------------------------------
         value = "";
         tmp = fa_countries_desc.get(ts06_country);
@@ -1041,34 +1119,285 @@ class FTN {
         value += ts06_floor.isEmpty() ? "": ts06_floor + " ";
         value += ts06_room.isEmpty() ? "": ts06_room + " ";
         value += ts06_pin_code;
-        result.append(create_element(11, value));
+        xml_strbld.append(create_element(11, value));
         // -------------------------------------------------------------------------------------------------------------
-        result.append(create_element(12, issuance_reason));
-        result.append(create_element(13, issuance_reason));
-        result.append(create_element(25, cr01_tin_id));
-        result.append(create_element(sysdate));
-        result.append(create_element(ca02_tax_year));
-        result.append(create_element(cr01_tin_id));
-        result.append(create_element(cr13_trade_name));
-        result.append(create_element(cr04_national_id));
-        result.append(create_element(gto_from_office_id));
-        result.append(create_element(cs04_name));
-        result.append(create_element(cs04_phone));
-        result.append(create_element(cs04_postal_adr));
-        result.append(create_element(cr20_postal_address));
-        result.append(create_element(cr11_first_name));
-        result.append(create_element(cr11_second_name));
-        result.append(create_element(ca02_return_id));
-        result.append(create_element(ca02_return_version));
-        result.append(create_element(ca02_tax_period_to));
-        result.append(create_element(ca02_tax_period_from));
-        result.append(create_element(cr01_natural_per_flag));
-        result.append(create_element(cr10_reg_number));
-        result.append(create_element(cr13_name));
-        result.append(create_element(cstd_activity_code));
-        result.append(create_element(cr25_fixed_phone));
-        result.append(create_element(ca03_return_content));
-        return result.toString();
+        xml_strbld.append(create_element(12, issuance_reason));
+        xml_strbld.append(create_element(13, issuance_cc03_id));
+        xml_strbld.append(create_element(14, issuance_cc03_create_on));
+        xml_strbld.append(create_element(15, cr01_natural_per_flag_is_y? "حقيقي": "حقوق"));
+        xml_strbld.append(create_element(16, cr01_tin_id));
+        xml_strbld.append(create_element(17, cr01_natural_per_flag_is_y? cr04_national_id: cr10_reg_number));
+        xml_strbld.append(create_element(18, cr01_natural_per_flag_is_y? cr11_first_name + " " + cr11_last_name: cr13_name));
+        xml_strbld.append(create_element(19, cr01_natural_per_flag_is_y? " ": cr13_trade_name));
+        xml_strbld.append(create_element(20, cstd_activity_code));
+        xml_strbld.append(create_element(21, cr25_fixed_phone));
+        xml_strbld.append(create_element(22, cr20_b_pin_code));
+        // -------------------------------------------------------------------------------------------------------------
+        value = "";
+        tmp = fa_countries_desc.get(cr20_b_country);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_regions_desc.get(cr20_b_province);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_cities_desc.get(cr20_b_city);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        tmp = fa_districts_desc.get(cr20_b_district);
+        value += tmp.isEmpty() ? "": tmp + " ";
+        value += cr20_b_village.isEmpty() ? "": cr20_b_village + " ";
+        value += cr20_b_lot_number.isEmpty() ? "": cr20_b_lot_number + " ";
+        value += cr20_b_square.isEmpty() ? "": cr20_b_square + " ";
+        value += cr20_b_phase.isEmpty() ? "": cr20_b_phase + " ";
+        value += cr20_b_complex.isEmpty() ? "": cr20_b_complex + " ";
+        value += cr20_b_alley.isEmpty() ? "": cr20_b_alley + " ";
+        value += cr20_b_second_street.isEmpty() ? "": cr20_b_second_street + " ";
+        value += cr20_b_street_name.isEmpty() ? "": cr20_b_street_name + " ";
+        value += cr20_b_street_no.isEmpty() ? "": cr20_b_street_no + " ";
+        value += cr20_b_building.isEmpty() ? "": cr20_b_building + " ";
+        value += cr20_b_staircase.isEmpty() ? "": cr20_b_staircase + " ";
+        value += cr20_b_floor.isEmpty() ? "": cr20_b_floor + " ";
+        value += cr20_b_room.isEmpty() ? "": cr20_b_room + " ";
+        value += cr20_b_pin_code;
+        xml_strbld.append(create_element(23, value));
+        // -------------------------------------------------------------------------------------------------------------
+        xml_strbld.append(create_element(24, ret_line_no));
+        xml_strbld.append(create_element(25, ret_t4_tin));
+        xml_strbld.append(create_element(26, ret_t4_name));
+        xml_strbld.append(create_element(27, ret_t4_national_legal_id));
+        xml_strbld.append(create_element(28, frm == 24?
+                ret_total_profit_loss: ret_net_profit_loss));
+        xml_strbld.append(create_element(29, frm == 24?
+                ret_profit_loss_adjustments: ret_age_profit_loss_adjustments));
+        xml_strbld.append(create_element(30, ret_add_deduct_profit_loss));
+        xml_strbld.append(create_element(31, frm == 24?
+                "" + ((ret_total_exempt_income.isEmpty()? 0.0: Double.parseDouble(ret_total_exempt_income)) +
+                        (ret_total_benefit_fix_tax_paid.isEmpty()? 0.0: Double.parseDouble(ret_total_benefit_fix_tax_paid))):
+                ret_total_exempt_revenue.isEmpty()? "0": "" + Double.parseDouble(ret_total_exempt_revenue)));
+        xml_strbld.append(create_element(32, frm == 24?
+                ret_total_financial_aids.isEmpty()? "0": "" + Double.parseDouble(ret_total_financial_aids): "0"));
+        xml_strbld.append(create_element(34, frm == 24?
+                "0": ret_total_financial_aids_paid.isEmpty()? "0": "" + Double.parseDouble(ret_total_financial_aids_paid)));
+        xml_strbld.append(create_element(35, frm == 24?
+                ret_total_deductions.isEmpty()? "0": ret_total_deductions:
+                ret_total_adjustment.isEmpty()? "0": ret_total_adjustment
+        ));
+        xml_strbld.append(create_element(36, ret_current_year_loss.isEmpty()? "0": ret_current_year_loss));
+        // result.append(create_element(37, number_to_farsi(ret_current_year_loss)));
+        xml_strbld.append(create_element(38, frm == 24?
+                ret_total_gross_income_before_ecxemption.isEmpty()? "0": ret_total_gross_income_before_ecxemption:
+                ret_taxable_income_after_deductions.isEmpty()? "0": ret_taxable_income_after_deductions
+        ));
+        xml_strbld.append(create_element(39,
+                frm == 24? ret_ecxemption_artic_101.isEmpty()? "0": ret_ecxemption_artic_101: "0"
+        ));
+        xml_strbld.append(create_element(40, "" + Math.ceil(frm == 24?
+                Double.parseDouble(ret_cumulated_losses_prev_years.isEmpty()? "0.0": ret_cumulated_losses_prev_years) +
+                        Double.parseDouble(ret_cumulated_losses_prev_years_partnership.isEmpty()? "0":
+                                ret_cumulated_losses_prev_years_partnership):
+                Double.parseDouble(ret_cumulated_loss_prev_years.isEmpty()? "0.0": ret_cumulated_loss_prev_years)
+        )));
+        xml_strbld.append(create_element(41, frm == 24? "0": ret_losses_incurred_execution_provisions));
+        // -------------------------------------------------------------------------------------------------------------
+        if(frm == 24 || frm == 46)
+            xml_strbld.append(create_element(42, ret_gross_taxable_income.isEmpty()? "0": ret_gross_taxable_income));
+        else if(frm == 44)
+            xml_strbld.append(create_element(42, "" + (
+                    (ret_t1_total_net_benefit.isEmpty()? 0: Math.ceil(Double.parseDouble(ret_t1_total_net_benefit))) +
+                            (ret_total_exemption.isEmpty()? 0: Math.ceil(Double.parseDouble(ret_total_exemption))) +
+                            (ret_total_diffrential_value_properties_bartered.isEmpty()? 0:
+                                    Math.ceil(Double.parseDouble(ret_total_diffrential_value_properties_bartered)))
+            )));
+        else if(frm == 45)
+            xml_strbld.append(create_element(42, "" +
+                    Math.ceil((ret_net_benefit.isEmpty()? 0: Double.parseDouble(ret_net_benefit)) +
+                            (ret_exemption.isEmpty()? 0: Double.parseDouble(ret_exemption)))
+            ));
+        else if(frm == 57)
+            xml_strbld.append(create_element(42,
+                    ret_tbl1_sum_of_investors_share_from_profit.isEmpty()? "0":
+                            "" + Math.ceil(Double.parseDouble(ret_tbl1_sum_of_investors_share_from_profit))
+            ));
+        else xml_strbld.append(create_element(42, "0"));
+        // -------------------------------------------------------------------------------------------------------------
+        xml_strbld.append(create_element(43, ret_chamber_of_commerce_portion.isEmpty()? "0":
+                "" + Math.ceil(Double.parseDouble(ret_chamber_of_commerce_portion))));
+        xml_strbld.append(create_element(44, frm == 24?
+                ret_unions_and_professional_societies_portion.isEmpty()? "0":
+                        "" + Math.ceil(Double.parseDouble(ret_unions_and_professional_societies_portion)):
+                "0"
+        ));
+        // -------------------------------------------------------------------------------------------------------------
+        if((frm == 44 || frm == 45) && !ret_exemption.isEmpty())
+            xml_strbld.append(create_element(45, "" + Math.ceil(Double.parseDouble(ret_exemption))));
+        else if ( frm == 57)
+            if(ret_tbl1_sum_of_exemptions.isEmpty())
+                xml_strbld.append(create_element(45, "0"));
+            else
+                xml_strbld.append(create_element(45, "" + Math.ceil(Double.parseDouble(ret_tbl1_sum_of_exemptions))));
+        // -------------------------------------------------------------------------------------------------------------
+        switch(frm) {
+            case 23:
+                if (ret_table2_taxable_basis.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_table2_taxable_basis))));
+                break;
+            case 24:
+                if (ret_net_taxable_income.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_net_taxable_income))));
+                break;
+            case 32:
+            case 34:
+                if (ret_total_taxable_income.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_total_taxable_income))));
+                break;
+            case 44:
+                if (ret_total_taxable_benefit.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_total_taxable_benefit))));
+                break;
+            case 45:
+                if (ret_total_net_benefit.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_total_net_benefit))));
+                break;
+            case 46:
+                if (ret_net_taxable_income.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_net_taxable_income))));
+                break;
+            case 49:
+                if (ret_t1_sum_net_profit_loss.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_t1_sum_net_profit_loss))));
+                break;
+            case 56:
+                Double dtmp = 0.0;
+                if (!ret_basis_for_witholding_tax_on_real_state_rental.isEmpty())
+                    dtmp += Double.parseDouble(ret_basis_for_witholding_tax_on_real_state_rental);
+                if (!ret_basis_for_withholding_tax_on_contractors_and_service_providers.isEmpty())
+                    dtmp += Double.parseDouble(ret_basis_for_withholding_tax_on_contractors_and_service_providers);
+                if (!ret_basis_for_withholding_tax_on_contractors_of_non_iranian_residing_outside_iran.isEmpty())
+                    dtmp += Double.parseDouble(ret_basis_for_withholding_tax_on_contractors_of_non_iranian_residing_outside_iran);
+                if (!ret_basis_for_stock_transfer_143_bis.isEmpty())
+                    dtmp += Double.parseDouble(ret_basis_for_stock_transfer_143_bis);
+                if (!ret_basis_for_foreign_trasportation_institutions_subject_113.isEmpty())
+                    dtmp += Double.parseDouble(ret_basis_for_foreign_trasportation_institutions_subject_113);
+                xml_strbld.append(create_element(46, "" + Math.ceil(dtmp)));
+                break;
+            case 57:
+                if (ret_tbl1_sum_of_investors_taxable_profit.isEmpty())
+                    xml_strbld.append(create_element(46, "0"));
+                else
+                    xml_strbld.append(create_element(46, "" + Math.ceil(Double.parseDouble(ret_tbl1_sum_of_investors_taxable_profit))));
+                break;
+        }
+        //--------------------------------------------------------------------------------------------------------------
+        switch(frm) {
+            case 24:
+            case 44:
+            case 45:
+            case 46:
+            case 57:
+                xml_strbld.append(create_element(51, ret_tax_due));
+                break;
+            case 32:
+            case 34:
+                xml_strbld.append(create_element(51, ret_net_tax_due));
+                break;
+            case 37:
+                xml_strbld.append(create_element(51, ret_s4_total_value_of_applicable_tax));
+                break;
+            case 48:
+                xml_strbld.append(create_element(51, ret_payable_tax));
+                break;
+            case 49:
+                xml_strbld.append(create_element(51, ret_s1_net_taxable_income));
+                break;
+            case 56:
+                xml_strbld.append(create_element(51, ret_total_applicable_tax_from_1_2));
+                break;
+            case 23:
+                xml_strbld.append(create_element(51, ret_applicabe_tax));
+                break;
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        switch(frm) {
+            case 24:
+                xml_strbld.append(create_element(52, ret_exemptions_tax_rebates));
+                break;
+            case 32:
+            case 34:
+                double dtmp = to_double(ret_art92_less_developed_deductions) +
+                        to_double(ret_exemption_caluse_14) +
+                        to_double(ret_foreign_nationals_subject_to_double_taxation_avoidance);
+                xml_strbld.append(create_element(52, String.valueOf(dtmp)));
+                break;
+            case 46:
+                xml_strbld.append(create_element(52, ret_tax_rebates));
+                break;
+            case 44:
+                xml_strbld.append(create_element(52, ret_total_exemption));
+                break;
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        if(frm == 46 && tax_year >= 1395)
+            xml_strbld.append(create_element(54, ret_discount_applicable_131_exemption_rebate));
+        if(frm == 24)
+            xml_strbld.append(create_element(55, ret_paidTaxForFRM24_SHARE_H));
+        else
+            xml_strbld.append(create_element(55, ret_paidTax_SHARE_H));
+//        result.append(create_element(54, ret_t4_national_legal_id));
+//        result.append(create_element(55, ret_t4_national_legal_id));
+//        result.append(create_element(56, ret_t4_national_legal_id));
+//        result.append(create_element(57, ret_t4_national_legal_id));
+//        result.append(create_element(58, ret_t4_national_legal_id));
+//        result.append(create_element(59, ret_t4_national_legal_id));
+//        result.append(create_element(60, ret_t4_national_legal_id));
+//        result.append(create_element(61, ret_t4_national_legal_id));
+//        result.append(create_element(62, ret_t4_national_legal_id));
+//        result.append(create_element(63, ret_t4_national_legal_id));
+//        result.append(create_element(64, ret_t4_national_legal_id));
+//        result.append(create_element(65, ret_t4_national_legal_id));
+//        result.append(create_element(66, ret_t4_national_legal_id));
+//        result.append(create_element(67, ret_t4_national_legal_id));
+//        result.append(create_element(68, ret_t4_national_legal_id));
+        helper_element1(69, ret_t1_tax_calculation_basis_amount);
+        helper_element1(70, ret_t1_tax_calculation_basis_tax);
+        helper_element1(71, ret_t1_long_term_investment_corporations_accepted);
+        helper_element1(72, ret_t1_long_term_investment_in_the_shares_of_corporations_accepted);
+        helper_element1(73, ret_t1_short_term_investment_corporations_accepted_exchange_market);
+        helper_element1(74, ret_t1_short_term_investment_in_the_shares_of_corporations_accepted);
+        helper_element1(75, ret_t1_long_term_investment_shares_of_other_corporations);
+        helper_element1(76, ret_t1_long_term_investment_in_the_shares_of_other_corporations_tax);
+        helper_element1(77, ret_t1_short_term_investment_shares_of_other_corporations_amount);
+        helper_element1(78, ret_t1_short_term_investment_in_the_shares_of_other_corporations_tax);
+        helper_element1(79, ret_t1_immovable_fix_tangable_assets);
+        helper_element1(80, ret_t1_intangable_assets_goodwill);
+        helper_element1(81, ret_t1_real_estate_properties_tax);
+        helper_element1(82, ret_t1_goodwill_transfer_tax);
+        helper_element1(83, ret_t1_total_amount);
+        helper_element1(84, ret_t1_total_tax);
+        helper_element1(87, ret_s5_total_transactional_value_of_land_and_building_to_be_transferred_after_application_of_the_ownership_share_coefficient);
+        helper_element1(88, ret_s5_transactional_value_of_building_to_be_transferred_after_application_of_the_ownership_share_coefficient);
+        helper_element1(89, ret_s5_day_value_of_goodwill_to_be_transferred_after_application_of_the_ownership_share_coefficient);
+        helper_element1(90, ret_s5_exemption_land_building);
+        helper_element1(91, ret_s5_exemption_goodwill);
+        helper_element1(92, ret_s5_taxable_basis_land_building);
+        helper_element1(93, ret_s5_transactional_value_of_building_to_be_transferred_after_application_of_the_ownership_share_coefficient);
+        helper_element1(94, ret_s5_taxable_basis_goodwill);
+        helper_element1(98, ret_s5_real_estate_Transfer_tax);
+        helper_element1(99, ret_s5_tax_subjected_to_Art_77_of_DTA);
+        helper_element1(100, ret_s5_goodwill_transfer_tax);
+        xml_strbld.append(create_element(101, previous_ftn_cc03_id));
+        xml_strbld.append(create_element(102, previous_ftn_cc03_create_on));
+        return xml_strbld.toString();
     }
 
     private String convert_to_string(int i) {
