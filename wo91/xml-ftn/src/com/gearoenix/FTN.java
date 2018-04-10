@@ -5,11 +5,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.sql.ResultSet;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Semaphore;
 
 class FTN {
@@ -41,6 +39,8 @@ class FTN {
     String issuance_reason = "";
     String previous_ftn_cc03_id = "";
     String previous_ftn_cc03_create_on = "";
+    String paid_tax_frm24 = "";
+    String paid_tax = "";
     private String ts06_country = "";
     private String ts06_region = "";
     private String ts06_city = "";
@@ -167,7 +167,7 @@ class FTN {
 
     private static boolean initialized = false;
     private static Date last_initialization = new Date();
-    private static Semaphore initialization_sem = new Semaphore(0);
+    private static Semaphore initialization_sem = new Semaphore(1);
     private static Map<String, String> fa_countries_desc = new HashMap<>();
     private static Map<String, String> fa_regions_desc = new HashMap<>();
     private static Map<String, String> fa_cities_desc = new HashMap<>();
@@ -180,9 +180,9 @@ class FTN {
     FTN() {
     }
 
-    private void initialize() {
+    private static void initialize() {
         Date now = new Date();
-        if(!initialized || now.getTime() - last_initialization.getTime() < 9 * 1000) return;
+//        if(initialized && now.getTime() - last_initialization.getTime() < 9 * 1000) return;
         try {
             initialization_sem.acquire();
             try {
@@ -194,16 +194,16 @@ class FTN {
                 last_initialization = now;
                 ResultSet rs = Main.get_result_set(
                         "" +
-                                "SELECT CODE_DESC, INTERNAL_CODE, GROUP_CODE " +
-                                "FROM FRAMEWORK.STD_CODES_DESC" +
-                                "WHERE" +
-                                "    GROUP_CODE IN (" +
-                                "        'COUNTRY'," +
-                                "        'REGION'," +
-                                "        'CITY'," +
-                                "        'DISTRICT')" +
-                                "    AND LANG_CODE = 'FA'" +
-                                "");
+                                "SELECT CODE_DESC, INTERNAL_CODE, GROUP_CODE\n" +
+                                "FROM FRAMEWORK.STD_CODES_DESC\n" +
+                                "WHERE\n" +
+                                "    GROUP_CODE IN (\n" +
+                                "        'COUNTRY',\n" +
+                                "        'REGION',\n" +
+                                "        'CITY',\n" +
+                                "        'DISTRICT')\n" +
+                                "    AND LANG_CODE = 'FA'\n" +
+                                "\n");
                 while(rs != null && rs.next()) {
                     String key = rs.getString("INTERNAL_CODE");
                     String val = rs.getString("CODE_DESC");
@@ -1098,13 +1098,13 @@ class FTN {
         // -------------------------------------------------------------------------------------------------------------
         value = "";
         tmp = fa_countries_desc.get(ts06_country);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_regions_desc.get(ts06_region);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_cities_desc.get(ts06_city);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_districts_desc.get(ts06_district);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         value += ts06_village.isEmpty() ? "": ts06_village + " ";
         value += ts06_lot_number.isEmpty() ? "": ts06_lot_number + " ";
         value += ts06_square.isEmpty() ? "": ts06_square + " ";
@@ -1135,13 +1135,13 @@ class FTN {
         // -------------------------------------------------------------------------------------------------------------
         value = "";
         tmp = fa_countries_desc.get(cr20_b_country);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_regions_desc.get(cr20_b_province);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_cities_desc.get(cr20_b_city);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         tmp = fa_districts_desc.get(cr20_b_district);
-        value += tmp.isEmpty() ? "": tmp + " ";
+        value += tmp == null || tmp.isEmpty() ? "": tmp + " ";
         value += cr20_b_village.isEmpty() ? "": cr20_b_village + " ";
         value += cr20_b_lot_number.isEmpty() ? "": cr20_b_lot_number + " ";
         value += cr20_b_square.isEmpty() ? "": cr20_b_square + " ";
@@ -1350,9 +1350,9 @@ class FTN {
         if(frm == 46 && tax_year >= 1395)
             xml_strbld.append(create_element(54, ret_discount_applicable_131_exemption_rebate));
         if(frm == 24)
-            xml_strbld.append(create_element(55, ret_paidTaxForFRM24_SHARE_H));
+            xml_strbld.append(create_element(55, paid_tax_frm24));
         else
-            xml_strbld.append(create_element(55, ret_paidTax_SHARE_H));
+            xml_strbld.append(create_element(55, paid_tax));
 //        result.append(create_element(54, ret_t4_national_legal_id));
 //        result.append(create_element(55, ret_t4_national_legal_id));
 //        result.append(create_element(56, ret_t4_national_legal_id));
