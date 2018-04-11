@@ -32,6 +32,8 @@ public class Main extends Application {
     private static Label return_version_error_l;
     private static TextField letter_id_tf;
     private static TextField issuance_reason_tf;
+    private static TextField request_no_tf;
+    private static TextField txp_internal_id_tf;
     private static Label status_error_l;
 
     private static String db_address;
@@ -42,6 +44,8 @@ public class Main extends Application {
     private static String return_version;
     private static String letter_id;
     private static String issuance_reason;
+    private static String request_no;
+    private static String txp_internal_id;
 
     private static ResultSet result_set;
 
@@ -175,6 +179,20 @@ public class Main extends Application {
         issuance_reason_tf.setMaxWidth(Double.MAX_VALUE);
         grid.add(issuance_reason_tf, 1, 12);
 
+        Label label8 = new Label("Request Number: ");
+        grid.add(label8, 0, 13);
+
+        request_no_tf = new TextField();
+        request_no_tf.setMaxWidth(Double.MAX_VALUE);
+        grid.add(request_no_tf, 1, 13);
+
+        Label label9 = new Label("Taxpayer Internal ID: ");
+        grid.add(label9, 0, 14);
+
+        txp_internal_id_tf = new TextField();
+        txp_internal_id_tf.setMaxWidth(Double.MAX_VALUE);
+        grid.add(txp_internal_id_tf, 1, 14);
+
         mode_tg.selectedToggleProperty().addListener(
                 (ObservableValue<? extends Toggle> ov, Toggle old_toggle, Toggle new_toggle) -> {
                     if (new_toggle.equals(all_rb)) {
@@ -201,12 +219,12 @@ public class Main extends Application {
 
         Button exe_b = new Button("Generate XML(s)");
         exe_b.setMaxWidth(Double.MAX_VALUE);
-        grid.add(exe_b, 0, 13, 2, 1);
+        grid.add(exe_b, 0, 15, 2, 1);
         exe_b.setOnMouseClicked((mouse_event) -> execute());
 
         status_error_l = new Label("");
         status_error_l.setTextFill(error_color);
-        grid.add(status_error_l, 0, 14, 2, 1);
+        grid.add(status_error_l, 0, 16, 2, 1);
 
         for (int colIndex = 0; colIndex < grid.getColumnCount(); colIndex++) {
             ColumnConstraints cc = new ColumnConstraints();
@@ -299,7 +317,9 @@ public class Main extends Application {
                     "    PREVIOUS_FTN.CC03_ID                                                      F25,\n" +
                     "    PREVIOUS_FTN.CC03_CREATE_ON                                               F26,\n" +
                     "    PAID_TAX_FRM24.AMT_NUMBER                                                 F27,\n" +
-                    "    PAID_TAX.AVAILABLE_AMT                                                    F28\n" +
+                    "    PAID_TAX.AVAILABLE_AMT                                                    F28,\n" +
+                    "    SUB_TAC_CE06_SUM_DISPLAY.UNPAID_AMT                                       F29,\n" +
+                    "    SUB_TAC_CE06_DISPLAY_FLAG.UNPAID_AMT                                      F30\n" +
                     "FROM\n" +
                     "    RET.TA02_RETURNS RET2\n" +
                     "    LEFT JOIN RET.TA03_RET_CONTENT RET3 ON RET3.CA02_RETURN_ID = RET2.CA02_RETURN_ID AND RET3.CA02_RETURN_VERSION = RET2.CA02_RETURN_VERSION\n" +
@@ -487,7 +507,1581 @@ public class Main extends Application {
                     "                WHERE\n" +
                     "                    TAB.AMOUNT > 0\n" +
                     "            ) AVAILABLE\n" +
-                    "    ) PAID_TAX\n" +
+                    "    ) PAID_TAX,\n" +
+                    "    (\n" +
+                    "        SELECT\n" +
+                    "            SUM( UNPAID_AMT ) UNPAID_AMT\n" +
+                    "        FROM\n" +
+                    "            (\n" +
+                    "                SELECT\n" +
+                    "                    SUM( UNPAID_AMT ) UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                JOIN RET.TA02_RETURNS TA02 ON\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'LFPEN',\n" +
+                    "                                                        'LRPEN',\n" +
+                    "                                                        'LPPEN'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                JOIN RET.TA02_RETURNS TA02 ON\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'LFPEN',\n" +
+                    "                                                        'LRPEN',\n" +
+                    "                                                        'LPPEN'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            ) UNPAID\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                JOIN RET.TA02_RETURNS TA02 ON\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                JOIN RET.TA02_RETURNS TA02 ON\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            )\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                JOIN RET.TA02_RETURNS TA02 ON\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            ) UNPAID\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                JOIN FRAMEWORK.STD_CODES STD0 ON\n" +
+                    "                                                    TT01.CSTD_TRAN_TYPE = STD0.INTERNAL_CODE\n" +
+                    "                                                    AND STD0.GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND STD0.PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'PEN247',\n" +
+                    "                                                        'PEN247D'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'OBJ'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = " + request_no + "\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            )\n" +
+                    "                    )\n" +
+                    "                GROUP BY\n" +
+                    "                    CODE_DESC\n" +
+                    "            )\n" +
+                    "    ) SUB_TAC_CE06_SUM_DISPLAY,\n" +
+                    "    (\n" +
+                    "        SELECT\n" +
+                    "            SUM( UNPAID_AMT ) UNPAID_AMT,\n" +
+                    "            CODE_DESC\n" +
+                    "        FROM\n" +
+                    "            (\n" +
+                    "                SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'LFPEN',\n" +
+                    "                                                'LRPEN',\n" +
+                    "                                                'LPPEN'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                            AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'LFPEN',\n" +
+                    "                                                'LRPEN',\n" +
+                    "                                                'LPPEN'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    ) UNPAID\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                            AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND TT28.CT28_ENTITY_ID = '" + return_id + "-" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    )\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    ) UNPAID\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'PEN247',\n" +
+                    "                                                'PEN247D'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'OBJ'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + request_no + "'\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    )\n" +
+                    "            )\n" +
+                    "        GROUP BY\n" +
+                    "            CODE_DESC\n" +
+                    "    ) SUB_TAC_CE06_DISPLAY_FLAG,\n";
+            query_str +=
+                    "    (\n" +
+                    "        SELECT\n" +
+                    "            SUM( UNPAID_AMT ),\n" +
+                    "            CODE_DESC\n" +
+                    "        FROM\n" +
+                    "            (\n" +
+                    "                SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'LFPEN',\n" +
+                    "                                                'LRPEN',\n" +
+                    "                                                'LPPEN'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                            AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                            AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'LFPEN',\n" +
+                    "                                                'LRPEN',\n" +
+                    "                                                'LPPEN'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                            AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    ) UNPAID\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                            AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                            AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            AND(\n" +
+                    "                                                TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                OR(\n" +
+                    "                                                    TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                    AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            TT28.CT28_ID\n" +
+                    "                                                        FROM\n" +
+                    "                                                            TT28_PENALTY TT28\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                            AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                            AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                    )\n" +
+                    "                                                )\n" +
+                    "                                            )\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    )\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01,\n" +
+                    "                                            RET.TA02_RETURNS TA02\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                            AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                            AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                            AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                            AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                            AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                            AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                    UNION ALL SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    ) UNPAID\n" +
+                    "            UNION ALL SELECT\n" +
+                    "                    UNPAID_AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC AS CODE_DESC,\n" +
+                    "                            AMOUNT AS UNPAID_AMT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC,\n" +
+                    "                                    SUM( AMOUNT ) AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            TT01.CT01_DESC,\n" +
+                    "                                            CASE\n" +
+                    "                                                WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                ELSE TT01.CT01_AMOUNT\n" +
+                    "                                            END AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            TT01_TRANSACTIONS TT01\n" +
+                    "                                        WHERE\n" +
+                    "                                            TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                            AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                            AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                            AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                'PEN247',\n" +
+                    "                                                'PEN247D'\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                SELECT\n" +
+                    "                                                    INTERNAL_CODE\n" +
+                    "                                                FROM\n" +
+                    "                                                    STD_CODES\n" +
+                    "                                                WHERE\n" +
+                    "                                                    GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                    AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                        'TA',\n" +
+                    "                                                        'AJ'\n" +
+                    "                                                    )\n" +
+                    "                                            )\n" +
+                    "                                            AND TT01.CSTD_ALLOCATED_ENTITY = 'OBJ'\n" +
+                    "                                            AND TT01.CT01_ALLOCATED_ENTITYID = '" + request_no + "'\n" +
+                    "                                    ) TAB1\n" +
+                    "                                GROUP BY\n" +
+                    "                                    CT01_DESC\n" +
+                    "                            ) TAB\n" +
+                    "                    )\n" +
+                    "            )\n" +
+                    "        GROUP BY\n" +
+                    "            CODE_DESC\n" +
+                    "    ) SUB_UNPAID_FLAG,\n" +
+                    "    (\n" +
+                    "        SELECT\n" +
+                    "            SUM( AVAILABLE_AMT ) AMT_NUMBER\n" +
+                    "        FROM\n" +
+                    "            (\n" +
+                    "                SELECT\n" +
+                    "                    CT01_DESC AS CODE_DESC,\n" +
+                    "                    AMOUNT AS AVAILABLE_AMT\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            CT01_DESC,\n" +
+                    "                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    TT01.CT01_DESC,\n" +
+                    "                                    CASE\n" +
+                    "                                        WHEN TT01.CSTD_DC = 'DT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                    END AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    TT01_TRANSACTIONS TT01,\n" +
+                    "                                    RET.TA02_RETURNS TA02\n" +
+                    "                                WHERE\n" +
+                    "                                    TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                    AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                        SELECT\n" +
+                    "                                            INTERNAL_CODE\n" +
+                    "                                        FROM\n" +
+                    "                                            STD_CODES\n" +
+                    "                                        WHERE\n" +
+                    "                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                            AND PARENT_INTERNAL_CODE IN('OT')\n" +
+                    "                                    )\n" +
+                    "                                    AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                            UNION ALL SELECT\n" +
+                    "                                    TT01.CT01_DESC,\n" +
+                    "                                    CASE\n" +
+                    "                                        WHEN TT01.CSTD_DC = 'DT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                    END AMOUNT\n" +
+                    "                                FROM\n" +
+                    "                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                WHERE\n" +
+                    "                                    TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                    AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                        SELECT\n" +
+                    "                                            INTERNAL_CODE\n" +
+                    "                                        FROM\n" +
+                    "                                            STD_CODES\n" +
+                    "                                        WHERE\n" +
+                    "                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                            AND PARENT_INTERNAL_CODE IN('OT')\n" +
+                    "                                    )\n" +
+                    "                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                            ) TAB1\n" +
+                    "                        GROUP BY\n" +
+                    "                            CT01_DESC\n" +
+                    "                    ) TAB\n" +
+                    "                WHERE\n" +
+                    "                    TAB.AMOUNT > 0\n" +
+                    "            ) AVAILABLE\n" +
+                    "    ) SUB_REWARDS_TOTAL,\n";
+            query_str +=
+                    "    (\n" +
+                    "        SELECT\n" +
+                    "            SUM( AMT ) AMT_NUMBER\n" +
+                    "        FROM\n" +
+                    "            (\n" +
+                    "                SELECT\n" +
+                    "                    SUM( UNPAID_AMT ) AMT,\n" +
+                    "                    CODE_DESC\n" +
+                    "                FROM\n" +
+                    "                    (\n" +
+                    "                        SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01,\n" +
+                    "                                                    RET.TA02_RETURNS TA02\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'LFPEN',\n" +
+                    "                                                        'LRPEN',\n" +
+                    "                                                        'LPPEN'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                            AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                                    AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                                    AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'LFPEN',\n" +
+                    "                                                        'LRPEN',\n" +
+                    "                                                        'LPPEN'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                            AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                                    AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            ) UNPAID\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01,\n" +
+                    "                                                    RET.TA02_RETURNS TA02\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                            AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                                    AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CR01_INTERNAL_ID = '" + txp_internal_id + "'\n" +
+                    "                                                    AND TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE LIKE 'AUD%'\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                                    AND(\n" +
+                    "                                                        TT01.CSTD_ENTITY <> 'PEN'\n" +
+                    "                                                        OR(\n" +
+                    "                                                            TT01.CSTD_ENTITY = 'PEN'\n" +
+                    "                                                            AND TT01.CT01_ENTITY_ID IN(\n" +
+                    "                                                                SELECT\n" +
+                    "                                                                    TT28.CT28_ID\n" +
+                    "                                                                FROM\n" +
+                    "                                                                    TT28_PENALTY TT28\n" +
+                    "                                                                WHERE\n" +
+                    "                                                                    TT28.CSTD_ENTITY = 'RET'\n" +
+                    "                                                                    AND SUBSTR( TT28.CT28_ENTITY_ID, 1, INSTR( TT28.CT28_ENTITY_ID, '-' )- 1 )= '" + return_id + "'\n" +
+                    "                                                                    AND TO_NUMBER( SUBSTR( TT28.CT28_ENTITY_ID, INSTR( TT28.CT28_ENTITY_ID, '-' )+ 1 ))<= '" + return_version + "'\n" +
+                    "                                                            )\n" +
+                    "                                                        )\n" +
+                    "                                                    )\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            )\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01,\n" +
+                    "                                                    RET.TA02_RETURNS TA02\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CR01_INTERNAL_ID = TA02.CR01_INTERNAL_ID\n" +
+                    "                                                    AND TT01.CR03_BRANCH_CODE = TA02.CR03_BRANCH_CODE\n" +
+                    "                                                    AND TT01.CSTD_TAX_TYPE = TA02.CA09_TAX_TYPE_CODE\n" +
+                    "                                                    AND TT01.CT01_TAX_YEAR = TA02.CA02_TAX_YEAR\n" +
+                    "                                                    AND TT01.CT01_PERIOD = TA02.CA02_TAX_PERIOD\n" +
+                    "                                                    AND TA02.CA02_RETURN_ID = '" + return_id + "'\n" +
+                    "                                                    AND TA02.CA02_RETURN_VERSION = '" + return_version + "'\n" +
+                    "                                            UNION ALL SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE = 'INTRES'\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'RET'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + return_id + "'\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            ) UNPAID\n" +
+                    "                    UNION ALL SELECT\n" +
+                    "                            UNPAID_AMT,\n" +
+                    "                            CODE_DESC\n" +
+                    "                        FROM\n" +
+                    "                            (\n" +
+                    "                                SELECT\n" +
+                    "                                    CT01_DESC AS CODE_DESC,\n" +
+                    "                                    AMOUNT AS UNPAID_AMT\n" +
+                    "                                FROM\n" +
+                    "                                    (\n" +
+                    "                                        SELECT\n" +
+                    "                                            CT01_DESC,\n" +
+                    "                                            SUM( AMOUNT ) AMOUNT\n" +
+                    "                                        FROM\n" +
+                    "                                            (\n" +
+                    "                                                SELECT\n" +
+                    "                                                    TT01.CT01_DESC,\n" +
+                    "                                                    CASE\n" +
+                    "                                                        WHEN TT01.CSTD_DC = 'CT' THEN 0 - TT01.CT01_AMOUNT\n" +
+                    "                                                        ELSE TT01.CT01_AMOUNT\n" +
+                    "                                                    END AMOUNT\n" +
+                    "                                                FROM\n" +
+                    "                                                    TT01_TRANSACTIONS TT01\n" +
+                    "                                                WHERE\n" +
+                    "                                                    TT01.CT01_REVERSED_FLAG = 'N'\n" +
+                    "                                                    AND TT01.CT01_CLEARED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_FINALIZED_FLAG = 'Y'\n" +
+                    "                                                    AND TT01.CT01_VALUE_DATE <= SYSDATE\n" +
+                    "                                                    AND TT01.CSTD_LIABILITY_TYPE IN(\n" +
+                    "                                                        'PEN247',\n" +
+                    "                                                        'PEN247D'\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_TRAN_TYPE IN(\n" +
+                    "                                                        SELECT\n" +
+                    "                                                            INTERNAL_CODE\n" +
+                    "                                                        FROM\n" +
+                    "                                                            STD_CODES\n" +
+                    "                                                        WHERE\n" +
+                    "                                                            GROUP_CODE = 'TRANSACTION_TYPE'\n" +
+                    "                                                            AND PARENT_INTERNAL_CODE IN(\n" +
+                    "                                                                'TA',\n" +
+                    "                                                                'AJ'\n" +
+                    "                                                            )\n" +
+                    "                                                    )\n" +
+                    "                                                    AND TT01.CSTD_ALLOCATED_ENTITY = 'OBJ'\n" +
+                    "                                                    AND TT01.CT01_ALLOCATED_ENTITYID = '" + request_no + "'\n" +
+                    "                                            ) TAB1\n" +
+                    "                                        GROUP BY\n" +
+                    "                                            CT01_DESC\n" +
+                    "                                    ) TAB\n" +
+                    "                            )\n" +
+                    "                    )\n" +
+                    "                GROUP BY\n" +
+                    "                    CODE_DESC\n" +
+                    "            )\n" +
+                    "    ) SUB_PENALTIES_TOTAL\n" +
                     "WHERE\n" +
                     "    RET2.CA02_RETURN_ID = '" + return_id + "'\n" +
                     "    AND RET2.CA02_RETURN_VERSION = " + return_version;
@@ -603,6 +2197,8 @@ public class Main extends Application {
             }
             letter_id = letter_id_tf.getText();
             issuance_reason = issuance_reason_tf.getText();
+            request_no = request_no_tf.getText();
+            txp_internal_id = txp_internal_id_tf.getText();
             create_for_one_ftn();
         } else {
             create_all_ftns();
