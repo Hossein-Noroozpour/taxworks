@@ -2,3 +2,13 @@
 *.bin
 *.class
 target/
+build/
+.settings/
+.gradle/
+.project
+.classpath
+1.*
+*.7z
+*.rar
+*.zip
+
