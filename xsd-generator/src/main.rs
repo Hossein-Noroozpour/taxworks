@@ -11,7 +11,9 @@ fn convert_to_string(i: i32) -> String {
     let mut result = String::new();
     let mut dom = i;
     loop {
-        if dom < 1 { break; }
+        if dom < 1 {
+            break;
+        }
         let rem = dom % BASE;
         result += &((rem + 'A' as i32) as u8 as char).to_string();
         dom /= BASE;
@@ -19,13 +21,15 @@ fn convert_to_string(i: i32) -> String {
     result
 }
 
+const NUM_FIELDS: i32 = 300;
+
 fn main() {
     let mut file = File::create("1.xsd").expect("Failed to open XSD file.");
     write!(&mut file, "<xs:schema attributeFormDefault=\"unqualified\" elementFormDefault=\"qualified\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">\n").unwrap();
     write!(&mut file, "  <xs:element name=\"content\">\n").unwrap();
     write!(&mut file, "    <xs:complexType>\n").unwrap();
     write!(&mut file, "      <xs:all>\n").unwrap();
-    for i in 1..103 {
+    for i in 1..NUM_FIELDS {
         write!(&mut file, "        <xs:element type=\"xs:string\" name=\"{}\" minOccurs=\"0\" maxOccurs=\"1\"/><!--{}-->\n", convert_to_string(i), i).unwrap();
     }
     write!(&mut file, "      </xs:all>\n").unwrap();
@@ -34,9 +38,9 @@ fn main() {
     write!(&mut file, "</xs:schema>\n").unwrap();
     let mut file = File::create("1.xml").expect("Failed to open XML file.");
     write!(&mut file, "<content>\n").unwrap();
-    for i in 1..103 {
+    for i in 1..NUM_FIELDS {
         let e = convert_to_string(i);
-        write!(&mut file, "  <{}>{}-{}<{}><!--{}-->\n", e, i, e, e, i).unwrap();
+        write!(&mut file, "  <{}>{}</{}>\n", e, i, e).unwrap();
     }
     write!(&mut file, "</content>\n").unwrap();
 }
